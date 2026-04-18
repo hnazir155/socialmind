@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase, memDB } from '@/lib/db';
+import { notifyDraftReady, isTelegramConfigured } from '@/lib/telegram';
 
 export const runtime = 'nodejs';
 
@@ -16,12 +17,28 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const sb = getSupabase();
+  let draft: any;
   if (sb) {
     const { data, error } = await sb.from('drafts').insert(body).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ draft: data });
+    draft = data;
+  } else {
+    draft = memDB.insert('drafts', body);
   }
-  const draft = memDB.insert('drafts', body);
+
+  // Ping Telegram when user requests it or for agent-created drafts
+  if (isTelegramConfigured() && body.notify !== false) {
+    const content = body.content || body;
+    notifyDraftReady({
+      id: draft.id,
+      hook: content.hook || body.hook || body.topic,
+      platform: body.platform,
+      format: body.format,
+      caption: content.caption || body.caption,
+      topic: body.topic,
+    }).catch(() => {});
+  }
+
   return NextResponse.json({ draft });
 }
 

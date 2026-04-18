@@ -7,6 +7,7 @@
 
 import { researchAgent, strategistAgent, scriptAgent, analyticsAgent, BrandDNA } from './agents';
 import { getSupabase, memDB } from './db';
+import { notifyDraftReady, notifyAgentActivity, isTelegramConfigured } from './telegram';
 
 export type Trigger =
   | { type: 'schedule'; cron: string }                         // cron expression
@@ -137,13 +138,31 @@ export async function executeActions(rule: Rule, context: any, dna?: BrandDNA) {
           }, dna);
           // Save as draft
           const sb = getSupabase();
-          const draft = {
+          const draftPayload: any = {
             topic, format: action.format, platform: context.platform || 'instagram',
-            status: 'draft', content: result, created_at: new Date().toISOString(),
+            status: 'draft', content: result,
+            hook: result.hook, caption: result.caption, hashtags: result.hashtags,
+            created_at: new Date().toISOString(),
           };
-          if (sb) await sb.from('drafts').insert(draft);
-          else memDB.insert('drafts', draft);
+          let savedDraft: any = null;
+          if (sb) {
+            const { data } = await sb.from('drafts').insert(draftPayload).select().single();
+            savedDraft = data;
+          } else {
+            savedDraft = memDB.insert('drafts', draftPayload);
+          }
           await logAudit({ rule_id: rule.id, rule_name: rule.name, action: `Drafted script: "${topic}"`, result: 'ok', detail: `${action.variants || 1} variant(s) saved to queue` });
+          // Ping phone
+          if (isTelegramConfigured() && savedDraft) {
+            await notifyDraftReady({
+              id: savedDraft.id,
+              hook: result.hook,
+              platform: context.platform || 'instagram',
+              format: action.format,
+              caption: result.caption,
+              topic,
+            });
+          }
           break;
         }
         case 'draft_calendar': {
@@ -154,6 +173,9 @@ export async function executeActions(rule: Rule, context: any, dna?: BrandDNA) {
         }
         case 'notify': {
           await logAudit({ rule_id: rule.id, rule_name: rule.name, action: `Notified via ${action.channel}`, result: 'ok', detail: action.message || 'Alert sent' });
+          if (isTelegramConfigured() && (action.channel === 'push' || action.channel === 'email' || action.channel === 'slack')) {
+            await notifyAgentActivity(rule.name, action.message || `${action.channel} notification`, JSON.stringify(context).slice(0, 80));
+          }
           break;
         }
         case 'auto_post': {

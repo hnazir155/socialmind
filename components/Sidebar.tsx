@@ -13,6 +13,7 @@ const NAV = [
   { section: 'Intelligence', items: [
     { href: '/agents', label: 'Agent Console', icon: 'M12 8V4H8M4 8h16v12H4z' },
     { href: '/automation', label: 'Automation Hub', icon: 'M6 9a3 3 0 116-0M18 21a3 3 0 11-6 0M9 6h6a3 3 0 013 3v6' },
+    { href: '/audit', label: 'Audit Log', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
     { href: '/training', label: 'Training Lab', icon: 'M22 10v6M2 10l10-5 10 5-10 5z' },
     { href: '/analytics', label: 'Analytics', icon: 'M18 20V10M12 20V4M6 20v-6' },
   ]},

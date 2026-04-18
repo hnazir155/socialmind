@@ -7,6 +7,36 @@
     },
     "app/api/publish/[platform]/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/daily-research/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/weekly-calendar/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/competitor-watch/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/cron/performance-check/route.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/daily-research",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-calendar",
+      "schedule": "0 9 * * 0"
+    },
+    {
+      "path": "/api/cron/competitor-watch",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/performance-check",
+      "schedule": "30 */2 * * *"
+    }
+  ]
 }

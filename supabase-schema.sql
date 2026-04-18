@@ -55,10 +55,30 @@ create table if not exists automations (
   id uuid primary key default gen_random_uuid(),
   name text,
   template_id text,
-  config jsonb,                 -- trigger + conditions + actions
   enabled boolean default true,
+  trigger jsonb,                -- { type, cron, threshold, ... }
+  conditions jsonb,             -- array of condition objects
+  actions jsonb,                -- array of action objects
   last_run timestamptz,
   run_count int default 0,
   success_count int default 0,
   created_at timestamptz default now()
+);
+
+-- AUDIT_LOG: every autonomous action
+create table if not exists audit_log (
+  id uuid primary key default gen_random_uuid(),
+  rule_id uuid,
+  rule_name text,
+  action text,
+  result text,                  -- ok | fail | pending
+  detail text,
+  timestamp timestamptz default now()
+);
+
+-- SETTINGS: key-value store for kill switch etc
+create table if not exists settings (
+  key text primary key,
+  value text,
+  updated_at timestamptz default now()
 );

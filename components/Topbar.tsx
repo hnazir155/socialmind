@@ -9,6 +9,7 @@ const LABELS: Record<string, string> = {
   '/studio': 'Script Studio',
   '/agents': 'Agent Console',
   '/automation': 'Automation Hub',
+  '/audit': 'Audit Log',
   '/training': 'Training Lab',
   '/analytics': 'Analytics',
   '/settings/connections': 'Connections',

@@ -229,11 +229,13 @@ export async function runScoutMission(mission: { id?: string; query: string; mar
   const sb = getSupabase();
   const raw = await scoutAgent({ ...mission, limit: mission.limit || 15 });
   let hot = 0, warm = 0, cold = 0;
+  console.log(`[Scout] Found ${raw.length} raw prospects for: ${mission.query}`);
 
   for (const r of raw) {
     try {
       const enrichment = await enrichmentAgent(r);
       const qual = await qualifierAgent(r, enrichment);
+      console.log(`[Scout] ${r.name}: score=${qual.score} fit=${qual.icp_fit}`);
       if (qual.icp_fit === 'skip') continue;
 
       const prospectData = {
@@ -251,7 +253,10 @@ export async function runScoutMission(mission: { id?: string; query: string; mar
 
       let saved: any = null;
       if (sb) {
-        const { data } = await sb.from('prospects').upsert(prospectData, { onConflict: 'name' }).select().single();
+        const { data, error } = await sb.from('prospects').insert(prospectData).select().single();
+        if (error) {
+          console.error('Supabase insert error:', error.message, error.code);
+        }
         saved = data;
       } else {
         saved = memDB.insert('prospects', prospectData);

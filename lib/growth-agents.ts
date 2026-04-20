@@ -73,7 +73,6 @@ async function scoutGooglePlaces(q: { query: string; market: string; industry: s
 }
 
 async function scoutViaAI(q: { query: string; market: string; industry: string }, skip: string[]): Promise<RawProspect[]> {
-  
   const openai = openaiClient;
   if (!openai) return [];
   const mktNames: Record<string,string> = {
@@ -81,24 +80,50 @@ async function scoutViaAI(q: { query: string; market: string; industry: string }
     UK:'UK (London, Manchester, Birmingham)', US:'USA (New York, LA, Houston)',
     KSA:'Saudi Arabia (Riyadh, Jeddah, Dammam)',
   };
-  const prompt = `You are a B2B lead generation expert for a performance marketing agency (services: Meta/Google/TikTok Ads, AI Creative, Shopify, CRO).
 
-Find 10 REAL businesses matching: "${q.query}" in ${mktNames[q.market] || q.market}.
-Skip these already found: ${skip.slice(0,5).join(', ') || 'none'}.
+  // Market-specific examples to guide quality
+  const examples: Record<string,string> = {
+    PK: 'e.g. Khaadi, Bonanza Satrangi, Gul Ahmed, J. (Junaid Jamshed), Sapphire, Alkaram, Ideas by Gul Ahmed, Breakout, Cross Stitch',
+    UAE: 'e.g. Noon, Ounass, Sun & Sand Sports, Namshi, Faces, Sivvi, Kibsons, Mumzworld',
+    UK: 'e.g. ASOS, Boohoo, Missguided, PrettyLittleThing, Gymshark, Cult Beauty, Charlotte Tilbury',
+    US: 'e.g. Warby Parker, Glossier, Allbirds, Bombas, Chubbies, Tuft & Needle, Purple',
+    KSA: 'e.g. Jarir Bookstore, Al Baik, Extra Stores, Danube Home, Homebox, Nayomi, Areej',
+  };
 
-Return ONLY a valid JSON array, no markdown, no extra text:
-[{"name":"...","website":"https://... or null","city":"...","country":"${q.market}","industry":"${q.industry}","description":"what they do in 1 sentence","source":"web_search","source_query":"${q.query}","phone":null,"email":null,"instagram_url":null}]
+  const prompt = `You are a B2B sales researcher. List 8 REAL, NAMED businesses for a performance marketing agency to prospect.
 
-Use real business names that exist. Focus on SMBs with products/services sold online.`;
+Query: "${q.query}" in ${mktNames[q.market] || q.market}
+Examples of the kind of businesses wanted: ${examples[q.market] || 'real established brands'}
+Skip these: ${skip.slice(0,5).join(', ') || 'none'}
+
+RULES — VERY IMPORTANT:
+1. Only use REAL business names (brands/companies you are certain exist)
+2. NO generic names like "Ecommerce Store", "Beauty Brand", "Fashion Shop", "Online Store", "Digital Business"
+3. Each business must have a real website domain
+4. Focus on established SMBs that sell products and could benefit from better Meta/Google/TikTok ads
+5. Return FEWER results if needed — 3 quality leads beats 10 fake ones
+
+Return ONLY valid JSON array:
+[{"name":"Real Brand Name","website":"https://realdomain.com","city":"City Name","country":"${q.market}","industry":"${q.industry}","description":"what they sell","source":"web_search","source_query":"${q.query}","instagram_url":"https://instagram.com/handle or null","phone":null,"email":null}]`;
 
   try {
     const res = await openai.chat.completions.create({
       model: 'gpt-4o', messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1500, temperature: 0.7,
+      max_tokens: 1500, temperature: 0.2, // lower temp = more factual
     });
     const text = (res.choices[0]?.message?.content || '[]').replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(text);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    // Hard filter: reject obviously generic/hallucinated names
+    const genericTerms = ['ecommerce', 'online store', 'fashion brand', 'beauty brand',
+      'digital store', 'web store', 'business', 'enterprise', 'gateway', 'planners',
+      'startup', 'private limited', 'pvt ltd', 'commerce', 'easy commerce', 'fast e-'];
+    return parsed.filter((p: any) => {
+      if (!p.name || p.name.length < 3) return false;
+      const nameLower = p.name.toLowerCase();
+      return !genericTerms.some(t => nameLower.includes(t));
+    });
   } catch { return []; }
 }
 

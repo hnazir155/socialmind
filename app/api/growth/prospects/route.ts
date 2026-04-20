@@ -53,3 +53,12 @@ export async function DELETE(req: NextRequest) {
   }
   return NextResponse.json({ ok: true });
 }
+
+// DELETE ALL — for clearing bad data
+export async function OPTIONS() {
+  const sb = getSupabase();
+  if (sb) {
+    await sb.from('prospects').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  }
+  return NextResponse.json({ ok: true, cleared: true });
+}

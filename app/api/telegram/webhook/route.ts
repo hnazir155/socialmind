@@ -73,6 +73,53 @@ export async function POST(req: NextRequest) {
           }
           break;
         }
+        case 'draft-outreach': {
+          const prospectId = param;
+          // Fire and forget - draft outreach in background
+          fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/growth/outreach`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prospect_id: prospectId }),
+          }).catch(() => {});
+          if (messageId) {
+            await editTelegramMessage(messageId, `✍️ <b>Drafting outreach messages…</b>\n\nYou'll get a Telegram notification when the 3 variants are ready to review.`);
+          }
+          break;
+        }
+        case 'skip-lead': {
+          const prospectId = param;
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://socialmind-two.vercel.app';
+          await fetch(`${appUrl}/api/growth/prospects`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: prospectId, icp_fit: 'skip', stage: 'skip' }),
+          }).catch(() => {});
+          if (messageId) {
+            await editTelegramMessage(messageId, `🗑️ <b>Lead skipped</b>\n\nRemoved from active pipeline.`);
+          }
+          break;
+        }
+        case 'approve-outreach': {
+          const [prospectId, channel] = param.split(':');
+          await logAudit({ rule_name: 'Telegram', action: `Outreach approved via phone for prospect ${prospectId?.slice(0,8)}`, result: 'ok', detail: `channel: ${channel}` });
+          if (messageId) {
+            await editTelegramMessage(messageId, `✅ <b>Outreach approved</b>\n\nMessage queued. Go to Outreach Queue to copy & send.`);
+          }
+          break;
+        }
+        case 'regen-outreach': {
+          const prospectId = param;
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://socialmind-two.vercel.app';
+          fetch(`${appUrl}/api/growth/outreach`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prospect_id: prospectId }),
+          }).catch(() => {});
+          if (messageId) {
+            await editTelegramMessage(messageId, `🔄 <b>Regenerating outreach…</b>\n\nNew variants coming shortly.`);
+          }
+          break;
+        }
         case 'test-ok': {
           if (messageId) {
             await editTelegramMessage(messageId, `🎉 <b>Perfect! Everything works.</b>\n\nYour agents will now ping you when they need approval.`);

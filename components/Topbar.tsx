@@ -13,6 +13,9 @@ const LABELS: Record<string, string> = {
   '/training': 'Training Lab',
   '/analytics': 'Analytics',
   '/settings/connections': 'Connections',
+  '/growth/pipeline': 'Lead Pipeline',
+  '/growth/scout': 'Prospect Scout',
+  '/growth/outreach': 'Outreach Queue',
 };
 
 export default function Topbar() {
